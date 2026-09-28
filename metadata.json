@@ -1,0 +1,6 @@
+{
+  "name": "Jardim",
+  "description": "Ecossistema digital de cultivo, RG Digital de plantas, linha do tempo permanente, cuidados inteligentes, comunidade, marketplace e suporte à decisão com IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

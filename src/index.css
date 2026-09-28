@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+:root {
+  --forest: #2D3A2D;
+  --moss: #5A5A40;
+  --clay: #A68069;
+  --sand: #F5F5F0;
+  --cream: #FFFFFF;
+  --gold: #D4AF37;
+}
+
+body {
+  background-color: var(--sand);
+  color: var(--forest);
+}
+
+.bg-sand {
+  background-color: #F5F5F0;
+}
+
+.bg-forest {
+  background-color: #2D3A2D;
+}
+
+.bg-moss {
+  background-color: #5A5A40;
+}
+
+.bg-clay {
+  background-color: #A68069;
+}
+
+.bg-gold {
+  background-color: #D4AF37;
+}
+
+.text-forest {
+  color: #2D3A2D;
+}
+
+.text-moss {
+  color: #5A5A40;
+}
+
+.text-clay {
+  color: #A68069;
+}
+
+.text-gold {
+  color: #D4AF37;
+}
+
+.border-forest {
+  border-color: #2D3A2D;
+}
+
+.border-moss {
+  border-color: #5A5A40;
+}
+
+.border-clay {
+  border-color: #A68069;
+}
+
+.border-gold {
+  border-color: #D4AF37;
+}
+
+/* Custom Sunbeams Animation for Virtual Garden */
+@keyframes sunbeamSweep {
+  0% {
+    transform: translateX(-40%) translateY(-20%) rotate(-35deg);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateX(10%) translateY(0%) rotate(-35deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(40%) translateY(20%) rotate(-35deg);
+    opacity: 0.2;
+  }
+}
+
+@keyframes sunbeamPulse {
+  0%, 100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-80px) translateX(30px);
+    opacity: 0;
+  }
+}
+
+.animate-sunbeam {
+  animation: sunbeamSweep 12s ease-in-out infinite alternate;
+}
+
+.animate-sunbeam-slow {
+  animation: sunbeamPulse 6s ease-in-out infinite alternate;
+}
+
+.animate-particle {
+  animation: floatParticle 8s ease-in-out infinite;
+}
+
+/* Sunbeam window slat shafts (raios de sol passando por frestas de janela) */
+.sunbeam-slats {
+  background: repeating-linear-gradient(
+    -35deg,
+    rgba(212, 175, 55, 0.3) 0px,
+    rgba(212, 175, 55, 0.3) 40px,
+    transparent 40px,
+    transparent 90px,
+    rgba(255, 220, 140, 0.2) 90px,
+    rgba(255, 220, 140, 0.2) 130px,
+    transparent 130px,
+    transparent 200px
+  );
+  filter: blur(10px);
+}
+
