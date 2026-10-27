@@ -33,7 +33,7 @@ export const TutorChatModal: React.FC<TutorChatModalProps> = ({
       id: 'msg-1',
       sender: 'TUTOR',
       senderName: sellerName,
-      text: `Olá! Sou o tutor responsável por ${itemTitle} (${rgDigital}). Como posso te ajudar com a planta ou transferência do RG Digital?`,
+      text: `Olá! Sou o tutor responsável por ${itemTitle}. Como posso te ajudar com a planta ou com os cuidados?`,
       time: '12:30',
     },
   ]);
@@ -61,7 +61,7 @@ export const TutorChatModal: React.FC<TutorChatModalProps> = ({
         id: `tutor-${Date.now()}`,
         sender: 'TUTOR',
         senderName: sellerName,
-        text: `Com certeza! Tenho todo o histórico de cultivo registrado no RG ${rgDigital}. Posso efetuar a transferência direta para a sua conta no aplicativo!`,
+        text: `Com certeza! Tenho todo o histórico de cultivo registrado no perfil da planta. Posso efetuar a transferência direta para a sua conta no aplicativo!`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, tutorReply]);
@@ -132,10 +132,10 @@ export const TutorChatModal: React.FC<TutorChatModalProps> = ({
             🌱 Quais os cuidados atuais?
           </button>
           <button
-            onClick={() => handleSendMessage('Gostaria de agendar a transferência do RG Digital!')}
+            onClick={() => handleSendMessage('Gostaria de agendar a transferência da custódia!')}
             className="px-2.5 py-1 bg-[#F5F5F0] hover:bg-[#5A5A40]/20 text-[#2D3A2D] rounded-xl text-[11px] whitespace-nowrap border border-[#5A5A40]/20 font-medium"
           >
-            🤝 Quero solicitar a transferência de RG
+            🤝 Quero solicitar a transferência de custódia
           </button>
         </div>
 

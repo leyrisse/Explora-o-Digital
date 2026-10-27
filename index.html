@@ -1,13 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>PlantAI — Identifique plantas e organize seu jardim</title>
+    <meta
+      name="description"
+      content="Identifique plantas, descubra os cuidados ideais e organize seu jardim."
+    />
+
+    <!-- ==================================================================== -->
+    <!-- METATAGS DE COMPARTILHAMENTO (OPENGRAPH E TWITTER CARDS)             -->
+    <!-- ATENÇÃO: Substitua 'https://SEU-DOMINIO-DEFINITIVO.com' pela URL     -->
+    <!-- pública e definitiva do seu domínio antes de publicar em produção.  -->
+    <!-- ==================================================================== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="PlantAI" />
+    <meta
+      property="og:description"
+      content="Identifique plantas, descubra os cuidados ideais e organize seu jardim."
+    />
+    <meta property="og:url" content="https://SEU-DOMINIO-DEFINITIVO.com/" />
+    <meta property="og:image" content="https://SEU-DOMINIO-DEFINITIVO.com/og-image.png" />
+    <meta property="og:image:secure_url" content="https://SEU-DOMINIO-DEFINITIVO.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PlantAI — Cuide das suas plantas, cultive seu jardim" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PlantAI" />
+    <meta
+      name="twitter:description"
+      content="Identifique plantas, descubra os cuidados ideais e organize seu jardim."
+    />
+    <meta name="twitter:image" content="https://SEU-DOMINIO-DEFINITIVO.com/og-image.png" />
+
+    <script>
+      (function() {
+        if (typeof window !== 'undefined' && window.location) {
+          var origin = window.location.origin;
+          var ogUrl = document.querySelector('meta[property="og:url"]');
+          var ogImage = document.querySelector('meta[property="og:image"]');
+          var twitterImage = document.querySelector('meta[name="twitter:image"]');
+          if (ogUrl && ogUrl.getAttribute('content').indexOf('SEU-DOMINIO-DEFINITIVO.com') !== -1) {
+            ogUrl.setAttribute('content', origin + '/');
+          }
+          if (ogImage && ogImage.getAttribute('content').indexOf('SEU-DOMINIO-DEFINITIVO.com') !== -1) {
+            ogImage.setAttribute('content', origin + '/og-image.png');
+          }
+          if (twitterImage && twitterImage.getAttribute('content').indexOf('SEU-DOMINIO-DEFINITIVO.com') !== -1) {
+            twitterImage.setAttribute('content', origin + '/og-image.png');
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

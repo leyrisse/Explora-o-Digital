@@ -182,13 +182,13 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
 
               <div>
                 <label className="block text-xs font-bold text-[#2D3A2D] uppercase tracking-wider mb-1">
-                  RG Digital da Planta Relacionada (Opcional)
+                  Código da Planta Relacionada (Opcional)
                 </label>
                 <input
                   type="text"
                   value={newPostPlantRg}
                   onChange={(e) => setNewPostPlantRg(e.target.value)}
-                  placeholder="Ex: RG-2024-9482"
+                  placeholder="Ex: JRD-2024-9482"
                   className="w-full bg-white px-3.5 py-2.5 rounded-2xl border border-[#5A5A40]/30 text-xs text-[#2D3A2D] font-mono focus:outline-none focus:ring-2 focus:ring-[#A68069]"
                 />
               </div>
@@ -225,7 +225,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
             Comunidade, Marketplace & Adoções
           </h2>
           <p className="text-[#5A5A40] text-sm mt-1">
-            Espaço de troca entre membros. Todos os anúncios de venda, troca ou doação são obrigatoriamente vinculados a um RG Digital real.
+            Espaço de troca entre membros. Todos os anúncios de venda, troca ou doação são vinculados a uma planta registrada.
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
             }`}
           >
             <ShoppingBag className="w-3.5 h-3.5 text-[#D4AF37]" />
-            Marketplace com RG
+            Marketplace de Plantas
           </button>
 
           <button
@@ -281,7 +281,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
               Abrigo de Plantas Órfãs
             </h3>
             <p className="text-[#F5F5F0]/90 text-xs sm:text-sm leading-relaxed max-w-3xl">
-              Quando um tutor encerra a conta ou precisa doar uma planta, ela se torna "órfã". O perfil, o RG Digital e todo o histórico de anos permanecem ativos no aplicativo até que um novo tutor a adote, garantindo a perenidade dos dados!
+              Quando um tutor encerra a conta ou precisa doar uma planta, ela se torna "órfã". O perfil e todo o histórico de anos permanecem ativos no aplicativo até que um novo tutor a adote, garantindo a perenidade dos dados!
             </p>
           </div>
 
@@ -321,7 +321,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
                 {adoptionSuccessId === plant.id ? (
                   <div className="p-3.5 bg-[#5A5A40] text-[#F5F5F0] rounded-2xl text-xs font-bold text-center flex items-center justify-center gap-2 border border-[#D4AF37]/50">
                     <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
-                    Parabéns! Você adotou {plant.name} com RG {plant.rgDigital}!
+                    Parabéns! Você adotou {plant.name}!
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 pt-2 border-t border-[#5A5A40]/10">
@@ -329,7 +329,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
                       onClick={() => onSelectPlant(plant)}
                       className="flex-1 py-2.5 px-3 bg-[#F5F5F0] hover:bg-[#e6e6dc] text-[#2D3A2D] font-bold text-xs rounded-2xl transition-colors"
                     >
-                      Ver RG & Linha do Tempo
+                      Ver Linha do Tempo
                     </button>
 
                     <button
@@ -370,7 +370,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
                       {item.verifiedRg && (
                         <span className="bg-[#5A5A40]/20 text-[#2D3A2D] text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
                           <ShieldCheck className="w-3 h-3 text-[#A68069]" />
-                          RG Verificado
+                          Registro Verificado
                         </span>
                       )}
                     </div>
@@ -411,7 +411,7 @@ export const CommunityMarketplaceModule: React.FC<CommunityMarketplaceModuleProp
                   className="w-full py-3 bg-[#2D3A2D] hover:bg-[#1f291f] text-[#F5F5F0] font-bold text-xs rounded-2xl shadow-xs transition-colors flex items-center justify-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
-                  Falar com Tutor / Solicitar Transferência de RG
+                  Falar com Tutor / Solicitar Adoção
                 </button>
               </div>
             ))}

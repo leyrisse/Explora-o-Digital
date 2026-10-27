@@ -28,6 +28,57 @@ export interface Tutor {
   joinedDate: string;
 }
 
+export type WateringFrequencyPreset =
+  | 'diariamente'
+  | 'a_cada_2_dias'
+  | 'a_cada_3_dias'
+  | 'semanalmente'
+  | 'a_cada_15_dias'
+  | 'personalizada';
+
+export type SunlightPreset =
+  | 'sol_direto'
+  | 'luz_indireta_intensa'
+  | 'meia_sombra'
+  | 'sombra'
+  | 'personalizada';
+
+export type FertilizingFrequencyPreset =
+  | 'quinzenal'
+  | 'mensal'
+  | 'a_cada_2_meses'
+  | 'a_cada_3_meses'
+  | 'a_cada_6_meses'
+  | 'anual'
+  | 'nao_necessaria'
+  | 'personalizada';
+
+export interface PlantStructuredCare {
+  // Rega
+  wateringFrequency: WateringFrequencyPreset;
+  customWateringDays?: number;
+  soilMoistureCheck: string;
+
+  // Iluminação
+  sunlightType: SunlightPreset;
+  customSunlight?: string;
+
+  // Adubação
+  fertilizerType: string;
+  fertilizerFrequency: FertilizingFrequencyPreset;
+  customFertilizerDays?: number;
+
+  // Substrato
+  substrate: string;
+
+  // Temperatura e umidade
+  temperature: string;
+  humidity: string;
+
+  // Manutenção
+  maintenanceNotes: string;
+}
+
 export interface Plant {
   id: string;
   name: string;
@@ -50,6 +101,48 @@ export interface Plant {
   acquisitionStory?: string;
   sunlightNeeds: 'Sombra' | 'Luz Indireta' | 'Sol Pleno' | 'Meia Sombra';
   waterNeeds: 'Alta (2-3x/sem)' | 'Média (1-2x/sem)' | 'Baixa (1x/15dias)';
+  careGuide?: SpeciesCareGuide;
+  structuredCare?: PlantStructuredCare;
+}
+
+export interface SpeciesCareGuide {
+  scientificName: string;
+  commonName?: string;
+  family?: string;
+  isWellKnownSpecies: boolean;
+  watering: {
+    need: string;
+    checkMethod: string;
+    frequency: string;
+    alert: string;
+  };
+  lighting: {
+    type: string;
+    idealLocation: string;
+    warning: string;
+  };
+  fertilization: {
+    type: string;
+    frequency: string;
+    caution: string;
+  };
+  substrate: {
+    drainage: string;
+    idealMix: string;
+  };
+  environment: {
+    temperature: string;
+    humidity: string;
+    warning: string;
+  };
+  maintenance: {
+    pruning: string;
+    repotting: string;
+    generalTips?: string;
+  };
+  confidenceNote: string;
+  source?: string;
+  lastUpdated?: string;
 }
 
 export interface Environment {
@@ -155,3 +248,69 @@ export interface CommunityPost {
   commentsCount: number;
   tags: string[];
 }
+
+export type IdentificationConfidence = 'alto' | 'medio' | 'baixo';
+
+export interface BotanicalCareInfo {
+  lighting: string;
+  watering: string;
+  pruning: string;
+  fertilization: string;
+}
+
+export interface PlantIdentificationResult {
+  isPlant: boolean;
+  commonName: string | null;
+  scientificName: string | null;
+  confidence: IdentificationConfidence;
+  isReliable: boolean;
+  alternativeSpecies: string[];
+  generalBotanicalCare: BotanicalCareInfo;
+  environmentalConsiderations: string;
+  identificationNotes: string;
+}
+
+export interface PlantIdentificationRequest {
+  imageBase64: string;
+  mimeType?: string;
+  userNotes?: string;
+}
+
+export interface PlantNetCandidate {
+  score: number; // e.g. 0.665
+  scorePercentage: number; // e.g. 66.5
+  scientificName: string;
+  scientificNameWithoutAuthor: string;
+  commonNames: string[];
+  family?: string;
+  genus?: string;
+  sampleImageUrl?: string;
+}
+
+export interface PlantNetIdentificationResponse {
+  success: boolean;
+  bestMatch?: string;
+  candidates: PlantNetCandidate[];
+  remainingRequests?: number;
+  message?: string;
+}
+
+export interface WishListItem {
+  id: string;
+  scientificName: string;
+  popularName?: string;
+  photoUrl: string;
+  addedAt: string;
+  careGuide?: SpeciesCareGuide;
+  notes?: string;
+}
+
+export interface InitialPlantData {
+  photoUrl?: string;
+  species?: string;
+  scientificName?: string;
+  popularName?: string;
+  name?: string;
+  careGuide?: SpeciesCareGuide;
+}
+

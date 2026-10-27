@@ -1,21 +1,19 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Flower2, CalendarHeart, HeartHandshake } from 'lucide-react';
+import { LayoutDashboard, Flower2, CalendarHeart, Camera } from 'lucide-react';
 
-export type TabType = 'HOME' | 'GARDEN' | 'CARE' | 'COMMUNITY';
+export type TabType = 'HOME' | 'GARDEN' | 'CAMERA' | 'CARE';
 
 interface NavigationProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   overdueTasksCount: number;
-  orphanPlantsCount: number;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   setActiveTab,
   overdueTasksCount,
-  orphanPlantsCount,
 }) => {
   const tabs = [
     {
@@ -30,15 +28,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: Flower2,
     },
     {
+      id: 'CAMERA' as TabType,
+      label: 'Câmera',
+      icon: Camera,
+    },
+    {
       id: 'CARE' as TabType,
       label: 'Agenda',
       icon: CalendarHeart,
-    },
-    {
-      id: 'COMMUNITY' as TabType,
-      label: 'Comunidade',
-      icon: HeartHandshake,
-      badgeCount: orphanPlantsCount,
     },
   ];
 

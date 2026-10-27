@@ -1,27 +1,85 @@
-import React, { useState } from 'react';
-import { Plant, CareTaskType, TimelineEvent, Tutor, Environment, PlantCollection, MarketplaceItem, CommunityPost } from './types';
-import { INITIAL_PLANTS, INITIAL_ENVIRONMENTS, INITIAL_COLLECTIONS, INITIAL_MARKETPLACE, INITIAL_COMMUNITY_POSTS } from './data/mockData';
+import React, { useState, useEffect } from 'react';
+import {
+  Plant,
+  CareTaskType,
+  TimelineEvent,
+  Tutor,
+  Environment,
+  PlantCollection,
+  SpeciesCareGuide,
+  PlantStructuredCare,
+  CareSchedule,
+  WishListItem,
+  InitialPlantData,
+} from './types';
+import {
+  INITIAL_PLANTS,
+  INITIAL_ENVIRONMENTS,
+  INITIAL_COLLECTIONS,
+} from './data/mockData';
+import { mapSunlightToLegacy, mapWaterNeedsLabel } from './utils/careUtils';
 import { Header } from './components/Header';
 import { Navigation, TabType } from './components/Navigation';
 import { HomeModule } from './components/HomeModule';
 import { GardenModule } from './components/GardenModule';
 import { DecisionAnalyzerModule } from './components/DecisionAnalyzerModule';
 import { CareCalendarModule } from './components/CareCalendarModule';
-import { CommunityMarketplaceModule } from './components/CommunityMarketplaceModule';
+import { CameraModule } from './components/CameraModule';
 import { PlantProfileModal } from './components/PlantProfileModal';
 import { NewPlantModal } from './components/NewPlantModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('HOME');
 
-  const [plants, setPlants] = useState<Plant[]>(INITIAL_PLANTS);
+  const [plants, setPlants] = useState<Plant[]>(() => {
+    try {
+      const saved = localStorage.getItem('jardim_plants_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar plantas do localStorage:', e);
+    }
+    return INITIAL_PLANTS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jardim_plants_v1', JSON.stringify(plants));
+    } catch (e) {
+      console.warn('Erro ao salvar plantas no localStorage:', e);
+    }
+  }, [plants]);
+
+  // Wishlist state with localStorage persistence
+  const [wishList, setWishList] = useState<WishListItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('jardim_wishlist_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar lista de desejos do localStorage:', e);
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('jardim_wishlist_v1', JSON.stringify(wishList));
+    } catch (e) {
+      console.warn('Erro ao salvar lista de desejos no localStorage:', e);
+    }
+  }, [wishList]);
+
   const [environments, setEnvironments] = useState<Environment[]>(INITIAL_ENVIRONMENTS);
   const [collections, setCollections] = useState<PlantCollection[]>(INITIAL_COLLECTIONS);
-  const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>(INITIAL_MARKETPLACE);
-  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(INITIAL_COMMUNITY_POSTS);
 
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [isNewPlantModalOpen, setIsNewPlantModalOpen] = useState(false);
+  const [pendingPlantInitialData, setPendingPlantInitialData] = useState<InitialPlantData | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (message: string) => {
@@ -60,9 +118,6 @@ export default function App() {
         } else if (taskType === 'REPOT') {
           taskTitle = 'Troca de Vaso';
           taskNameFormatted = 'Troca de Vaso';
-        } else {
-          taskTitle = 'Cuidado de Rotina';
-          taskNameFormatted = 'Cuidados';
         }
 
         const newTimelineEvent: TimelineEvent = {
@@ -70,57 +125,33 @@ export default function App() {
           date: today,
           type: taskType,
           title: taskTitle,
-          description: `Cuidados de rotina (${taskNameFormatted}) registrados pelo tutor no aplicativo Jardim.`,
-          authorName: p.tutors[0]?.name || 'Camila Silva',
-          authorRole: p.tutors[0]?.role || 'Tutor Principal',
+          description: `Cuidados realizados com carinho por Camila Silva.`,
+          authorName: 'Camila Silva',
+          authorRole: 'Tutor Principal',
         };
 
         return {
           ...p,
-          status: 'HEALTHY' as const,
+          status: 'HEALTHY',
           careSchedule: updatedSchedule,
           timeline: [newTimelineEvent, ...p.timeline],
         };
       })
     );
 
-    showToast(`✨ ${taskNameFormatted || 'Cuidado'} registrado com sucesso para ${targetPlantName || 'a planta'}!`);
-
-    // Refresh selected plant if open in modal
-    if (selectedPlant && selectedPlant.id === plantId) {
-      setSelectedPlant((prev) => {
-        if (!prev) return null;
-        const updatedSchedule = { ...prev.careSchedule };
-        if (taskType === 'WATER') updatedSchedule.lastWatered = today;
-        if (taskType === 'FERTILIZE') updatedSchedule.lastFertilized = today;
-        if (taskType === 'PRUNE') updatedSchedule.lastPruned = today;
-
-        return {
-          ...prev,
-          status: 'HEALTHY' as const,
-          careSchedule: updatedSchedule,
-          timeline: [
-            {
-              id: `evt-${Date.now()}`,
-              date: today,
-              type: taskType,
-              title: taskType === 'PRUNE' ? 'Poda de Manutenção' : taskType === 'FERTILIZE' ? 'Adubação de Nutrição' : 'Rega Concluída',
-              description: `Cuidados de rotina registrados pelo tutor no aplicativo Jardim.`,
-              authorName: prev.tutors[0]?.name || 'Camila Silva',
-              authorRole: prev.tutors[0]?.role || 'Tutor Principal',
-            },
-            ...prev.timeline,
-          ],
-        };
-      });
-    }
+    showToast(`🌱 ${taskNameFormatted} registrada para "${targetPlantName}"!`);
   };
 
   // Add timeline event
-  const handleAddTimelineEvent = (plantId: string, eventData: Omit<TimelineEvent, 'id'>) => {
-    const newEvt: TimelineEvent = {
+  const handleAddTimelineEvent = (
+    plantId: string,
+    eventData: Omit<TimelineEvent, 'id' | 'authorName' | 'authorRole'>
+  ) => {
+    const newEvent: TimelineEvent = {
       ...eventData,
       id: `evt-${Date.now()}`,
+      authorName: 'Camila Silva',
+      authorRole: 'Tutor Principal',
     };
 
     setPlants((prev) =>
@@ -128,43 +159,82 @@ export default function App() {
         if (p.id !== plantId) return p;
         return {
           ...p,
-          timeline: [newEvt, ...p.timeline],
+          timeline: [newEvent, ...p.timeline],
         };
       })
     );
 
     if (selectedPlant && selectedPlant.id === plantId) {
-      setSelectedPlant((prev) => (prev ? { ...prev, timeline: [newEvt, ...prev.timeline] } : null));
+      setSelectedPlant((prev) =>
+        prev
+          ? {
+              ...prev,
+              timeline: [newEvent, ...prev.timeline],
+            }
+          : null
+      );
     }
+
+    showToast(`📸 Momento registrado com sucesso na Linha do Tempo!`);
   };
 
   // Add tutor
-  const handleAddTutor = (plantId: string, tutor: Tutor) => {
+  const handleAddTutor = (plantId: string, tutorName: string, role: Tutor['role']) => {
+    const today = new Date().toISOString().split('T')[0];
+    const newTutor: Tutor = {
+      id: `tutor-${Date.now()}`,
+      name: tutorName,
+      role,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      joinedDate: today,
+    };
+
+    const newEvent: TimelineEvent = {
+      id: `evt-tutor-${Date.now()}`,
+      date: today,
+      type: 'NOTE',
+      title: `Novo Tutor Vinculado: ${tutorName}`,
+      description: `${tutorName} agora é tutor (${role}) desta planta no ecossistema Jardim.`,
+      authorName: 'Plataforma Jardim',
+      authorRole: 'Ecossistema Digital',
+    };
+
     setPlants((prev) =>
       prev.map((p) => {
         if (p.id !== plantId) return p;
         return {
           ...p,
-          tutors: [...p.tutors, tutor],
+          tutors: [...p.tutors, newTutor],
+          timeline: [newEvent, ...p.timeline],
         };
       })
     );
 
     if (selectedPlant && selectedPlant.id === plantId) {
-      setSelectedPlant((prev) => (prev ? { ...prev, tutors: [...prev.tutors, tutor] } : null));
+      setSelectedPlant((prev) =>
+        prev
+          ? {
+              ...prev,
+              tutors: [...prev.tutors, newTutor],
+              timeline: [newEvent, ...prev.timeline],
+            }
+          : null
+      );
     }
+
+    showToast(`🤝 Tutor "${tutorName}" vinculado à planta com sucesso!`);
   };
 
-  // Transfer ownership
-  const handleTransferOwnership = (plantId: string, newTutorName: string, reason: string) => {
+  // Transfer plant custody
+  const handleTransferOwnership = (plantId: string, newTutorName: string, reason?: string) => {
     const today = new Date().toISOString().split('T')[0];
 
     const transferEvt: TimelineEvent = {
       id: `evt-transfer-${Date.now()}`,
       date: today,
       type: 'TRANSFER',
-      title: `Transferência Oficial do RG Digital para ${newTutorName}`,
-      description: `Custódia principal transferida. Motivo: ${reason || 'Adoção/Venda via comunidade Jardim'}. Todo o histórico anterior permanece preservado intacto.`,
+      title: `Transferência Oficial de Tutoria para ${newTutorName}`,
+      description: `Custódia principal transferida. Motivo: ${reason || 'Transferência formalizada via plataforma Jardim'}. Todo o histórico anterior permanece preservado intacto.`,
       authorName: 'Plataforma Jardim',
       authorRole: 'Ecossistema Digital',
     };
@@ -178,9 +248,9 @@ export default function App() {
           tutors: [
             {
               id: `tutor-new-${Date.now()}`,
-              name: newTutorName,
+              name: `${newTutorName} (Tutor Atual)`,
               role: 'Tutor Principal',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+              avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
               joinedDate: today,
             },
             ...p.tutors,
@@ -190,13 +260,7 @@ export default function App() {
       })
     );
 
-    showToast(` Custódia transferida com sucesso para ${newTutorName}!`);
-  };
-
-  // Adopt orphan plant
-  const handleAdoptOrphanPlant = (plantId: string) => {
-    handleTransferOwnership(plantId, 'Camila Silva (Novo Tutor Registrado)', 'Adoção responsável pelo abrigo de plantas órfãs do Jardim');
-    showToast(`❤️ Parabéns! Você adotou a planta e assumiu a custódia responsável!`);
+    showToast(`Custódia transferida com sucesso para ${newTutorName}!`);
   };
 
   // Add saved decision to plant timeline
@@ -206,20 +270,122 @@ export default function App() {
       type: 'NOTE',
       title: `Decisão Estratégica via IA: ${decisionTitle}`,
       description: `Análise realizada com suporte do Analisador de Decisões do Jardim. Opção escolhida e recomendada: "${bestOption}".`,
-      authorName: 'Camila Silva com IA Jardim',
-      authorRole: 'Tutor Principal',
     });
     showToast(`Análise de IA registrada na Linha do Tempo!`);
   };
 
-  // Add new plant
+  // Update plant care guide
+  const handleUpdatePlantCareGuide = (plantId: string, careGuide: SpeciesCareGuide) => {
+    setPlants((prev) =>
+      prev.map((p) => (p.id === plantId ? { ...p, careGuide } : p))
+    );
+
+    if (selectedPlant && selectedPlant.id === plantId) {
+      setSelectedPlant((prev) => (prev ? { ...prev, careGuide } : null));
+    }
+    showToast(`🌿 Guia de cuidados atualizado com sucesso!`);
+  };
+
+  // Update structured plant care and sync careSchedule
+  const handleUpdatePlantCare = (
+    plantId: string,
+    structuredCare: PlantStructuredCare,
+    careSchedule: CareSchedule,
+    careGuide?: SpeciesCareGuide
+  ) => {
+    const sunlightNeeds = mapSunlightToLegacy(structuredCare.sunlightType);
+    const waterNeeds = mapWaterNeedsLabel(careSchedule.waterFrequencyDays);
+
+    setPlants((prev) =>
+      prev.map((p) => {
+        if (p.id !== plantId) return p;
+        return {
+          ...p,
+          structuredCare,
+          careSchedule,
+          sunlightNeeds,
+          waterNeeds,
+          careGuide: careGuide || p.careGuide,
+        };
+      })
+    );
+
+    if (selectedPlant && selectedPlant.id === plantId) {
+      setSelectedPlant((prev) =>
+        prev
+          ? {
+              ...prev,
+              structuredCare,
+              careSchedule,
+              sunlightNeeds,
+              waterNeeds,
+              careGuide: careGuide || prev.careGuide,
+            }
+          : null
+      );
+    }
+  };
+
+  // Add new plant to personal garden
   const handleSaveNewPlant = (newPlant: Plant) => {
     setPlants((prev) => [newPlant, ...prev]);
-    showToast(`🌱 Planta "${newPlant.name}" criada com RG ${newPlant.rgDigital}!`);
+    showToast(`🌱 Planta "${newPlant.name}" cadastrada com sucesso!`);
+  };
+
+  // Normalization function to prevent duplicate species in wishlist
+  const normalizeSpeciesKey = (scientificName?: string, popularName?: string): string => {
+    if (scientificName && scientificName.trim()) {
+      return scientificName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    if (popularName && popularName.trim()) {
+      return popularName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    return '';
+  };
+
+  // Add species to Wish List (Requirement 6)
+  const handleAddToWishList = (item: {
+    scientificName: string;
+    popularName?: string;
+    photoUrl: string;
+    careGuide?: SpeciesCareGuide;
+  }) => {
+    const key = normalizeSpeciesKey(item.scientificName, item.popularName);
+    const alreadyExists = wishList.some(
+      (w) => normalizeSpeciesKey(w.scientificName, w.popularName) === key
+    );
+
+    if (alreadyExists) {
+      showToast(`⚠️ Esta espécie já está no seu Jardim Futuro!`);
+      return;
+    }
+
+    const newItem: WishListItem = {
+      id: `wish-${Date.now()}`,
+      scientificName: item.scientificName,
+      popularName: item.popularName,
+      photoUrl: item.photoUrl,
+      addedAt: new Date().toLocaleDateString('pt-BR'),
+      careGuide: item.careGuide,
+    };
+
+    setWishList((prev) => [newItem, ...prev]);
+    showToast(`✨ "${item.popularName || item.scientificName}" foi adicionada ao Jardim Futuro!`);
+  };
+
+  // Remove from Wish List (Jardim Futuro)
+  const handleRemoveFromWishList = (id: string) => {
+    setWishList((prev) => prev.filter((item) => item.id !== id));
+    showToast(`Planta removida do Jardim Futuro.`);
+  };
+
+  // Open garden registration pre-filled from identified result (Requirement 5)
+  const handleOpenGardenFromIdentified = (data: InitialPlantData) => {
+    setPendingPlantInitialData(data);
+    setIsNewPlantModalOpen(true);
   };
 
   const overdueTasksCount = plants.filter((p) => p.status === 'NEEDS_CARE').length;
-  const orphanPlantsCount = plants.filter((p) => p.isOrphan).length;
 
   return (
     <div className="min-h-screen bg-[#F5F5F0] text-[#2D3A2D] font-sans flex flex-col antialiased relative">
@@ -234,7 +400,10 @@ export default function App() {
 
       {/* Top Header */}
       <Header
-        onOpenNewPlantModal={() => setIsNewPlantModalOpen(true)}
+        onOpenNewPlantModal={() => {
+          setPendingPlantInitialData(null);
+          setIsNewPlantModalOpen(true);
+        }}
       />
 
       {/* Main Body Module Area */}
@@ -246,7 +415,6 @@ export default function App() {
             onLogCareTask={handleLogCareTask}
             onSelectPlant={(plant) => setSelectedPlant(plant)}
             onNavigateToCare={() => setActiveTab('CARE')}
-            onNavigateToCommunity={() => setActiveTab('COMMUNITY')}
           />
         )}
 
@@ -256,7 +424,22 @@ export default function App() {
             environments={environments}
             collections={collections}
             onSelectPlant={(plant) => setSelectedPlant(plant)}
-            onOpenNewPlantModal={() => setIsNewPlantModalOpen(true)}
+            onOpenNewPlantModal={() => {
+              setPendingPlantInitialData(null);
+              setIsNewPlantModalOpen(true);
+            }}
+            wishList={wishList}
+            onRemoveWishListItem={handleRemoveFromWishList}
+            onAddToGarden={handleOpenGardenFromIdentified}
+            onNavigateToCamera={() => setActiveTab('CAMERA')}
+          />
+        )}
+
+        {activeTab === 'CAMERA' && (
+          <CameraModule
+            onAddToGarden={handleOpenGardenFromIdentified}
+            onAddToWishList={handleAddToWishList}
+            onShowToast={showToast}
           />
         )}
 
@@ -274,17 +457,6 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'COMMUNITY' && (
-          <CommunityMarketplaceModule
-            marketplaceItems={marketplaceItems}
-            posts={communityPosts}
-            plants={plants}
-            onAdoptOrphanPlant={handleAdoptOrphanPlant}
-            onSelectPlant={(plant) => setSelectedPlant(plant)}
-            onShowToast={showToast}
-          />
-        )}
-
       </main>
 
       {/* Footer */}
@@ -292,7 +464,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-[#F5F5F0]">
             <span className="font-serif font-bold text-[#D4AF37] text-sm">Jardim</span>
-            <span>• Ecossistema Digital com RG e Histórico Perpétuo</span>
+            <span>• Ecossistema Digital com Histórico Perpétuo</span>
           </div>
           <p>© 2026 Jardim. Preservando histórias e conexões afetivas com as plantas.</p>
         </div>
@@ -303,10 +475,9 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         overdueTasksCount={overdueTasksCount}
-        orphanPlantsCount={orphanPlantsCount}
       />
 
-      {/* Plant Profile & RG Modal */}
+      {/* Plant Profile Modal */}
       {selectedPlant && (
         <PlantProfileModal
           plant={selectedPlant}
@@ -315,15 +486,24 @@ export default function App() {
           onAddTutor={handleAddTutor}
           onTransferOwnership={handleTransferOwnership}
           onLogCareTask={handleLogCareTask}
+          onUpdatePlantCareGuide={handleUpdatePlantCareGuide}
+          onUpdatePlantCare={handleUpdatePlantCare}
         />
       )}
 
-      {/* New Plant Modal */}
+      {/* New Plant Modal (Supports initialData when triggered from Camera or Wishlist) */}
       {isNewPlantModalOpen && (
         <NewPlantModal
           environments={environments}
-          onClose={() => setIsNewPlantModalOpen(false)}
-          onSavePlant={handleSaveNewPlant}
+          initialData={pendingPlantInitialData || undefined}
+          onClose={() => {
+            setIsNewPlantModalOpen(false);
+            setPendingPlantInitialData(null);
+          }}
+          onSavePlant={(newPlant) => {
+            handleSaveNewPlant(newPlant);
+            setPendingPlantInitialData(null);
+          }}
         />
       )}
 

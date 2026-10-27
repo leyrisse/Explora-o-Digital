@@ -32,11 +32,11 @@ export const DecisionAnalyzerModule: React.FC<DecisionAnalyzerModuleProps> = ({
       options: ['Fazer o replante completo para vaso de 40cm agora', 'Adubação de manutenção leve e esperar Setembro', 'Colocar num cachepô sem mexer na raiz'],
     },
     {
-      label: '🤝 Vender com RG vs Manter como Planta Órfã',
-      title: 'Devo doar minha Orquídea com RG Digital no Marketplace ou mantê-la no abrigo de Plantas Órfãs?',
+      label: '🤝 Doar no Marketplace vs Manter como Planta Órfã',
+      title: 'Devo doar minha Orquídea no Marketplace ou mantê-la no abrigo de Plantas Órfãs?',
       category: 'Transferência & Adoção',
       context: 'Vou mudar de estado e não poderei levar 2 orquídeas que estão comigo há 3 anos.',
-      options: ['Abrir anúncio de doação no Marketplace com transferência do RG', 'Mudar o status para Planta Órfã sob custódia do Jardim'],
+      options: ['Abrir anúncio de doação no Marketplace com transferência de tutoria', 'Mudar o status para Planta Órfã sob custódia do Jardim'],
     },
     {
       label: '🪴 Vaso de Barro Poroso vs Vaso Autoirrigável',
@@ -47,10 +47,10 @@ export const DecisionAnalyzerModule: React.FC<DecisionAnalyzerModuleProps> = ({
     },
     {
       label: '💼 Assinatura de Tutoria Profissional para Viveiro',
-      title: 'Vale a pena oferecer o RG Digital do Jardim como diferencial para meus clientes de viveiro?',
+      title: 'Vale a pena oferecer o cadastro no Jardim como diferencial para meus clientes de viveiro?',
       category: 'Estratégia de Negócios',
-      context: 'Sou viveirista e quero fidelizar clientes pós-venda garantindo suporte e transferência de histórico.',
-      options: ['Oferecer o RG Digital gratuito para todas as mudas no ato da compra', 'Cobrar uma taxa mensal de tutoria técnica'],
+      context: 'Sou viveirista e quero fidelizar clientes pós-venda garantindo suporte e histórico da planta.',
+      options: ['Oferecer o perfil digital gratuito para todas as mudas no ato da compra', 'Cobrar uma taxa mensal de tutoria técnica'],
     },
   ];
 

@@ -1,7 +1,44 @@
-import React, { useState } from 'react';
-import { Plant, CareTaskType, TimelineEvent, Tutor } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Plant, CareTaskType, TimelineEvent, Tutor, SpeciesCareGuide } from '../types';
 import { calculateNextCareDate } from '../utils/dateUtils';
-import { X, QrCode, History, ShieldCheck, UserPlus, Send, Calendar, Droplets, Sprout, Scissors, Sun, FileText, Plus, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
+import {
+  X,
+  QrCode,
+  History,
+  ShieldCheck,
+  UserPlus,
+  Send,
+  Calendar,
+  Droplets,
+  Sprout,
+  Scissors,
+  Sun,
+  FileText,
+  Plus,
+  CheckCircle2,
+  Sparkles,
+  AlertCircle,
+  BookOpen,
+  Layers,
+  Thermometer,
+  RefreshCw,
+  Info,
+  Check,
+  Edit3,
+  Save,
+} from 'lucide-react';
+import { PlantStructuredCare, CareSchedule } from '../types';
+import {
+  getOrInitializeStructuredCare,
+  deriveStructuredCareFromGuide,
+  getWateringDays,
+  getFertilizerDays,
+  WATERING_FREQUENCY_OPTIONS,
+  SUNLIGHT_OPTIONS,
+  FERTILIZING_FREQUENCY_OPTIONS,
+} from '../utils/careUtils';
+import { PlantCareFormFields } from './PlantCareFormFields';
+import { SpeciesCareAccordion } from './SpeciesCareAccordion';
 
 interface PlantProfileModalProps {
   plant: Plant;
@@ -10,6 +47,13 @@ interface PlantProfileModalProps {
   onAddTutor: (plantId: string, tutor: Tutor) => void;
   onTransferOwnership: (plantId: string, newTutorName: string, reason: string) => void;
   onLogCareTask?: (plantId: string, taskType: CareTaskType) => void;
+  onUpdatePlantCareGuide?: (plantId: string, careGuide: SpeciesCareGuide) => void;
+  onUpdatePlantCare?: (
+    plantId: string,
+    structuredCare: PlantStructuredCare,
+    careSchedule: CareSchedule,
+    careGuide?: SpeciesCareGuide
+  ) => void;
 }
 
 export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
@@ -19,8 +63,123 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
   onAddTutor,
   onTransferOwnership,
   onLogCareTask,
+  onUpdatePlantCareGuide,
+  onUpdatePlantCare,
 }) => {
-  const [activeTab, setActiveTab] = useState<'TIMELINE' | 'RG_QR' | 'TUTORS' | 'TRANSFER'>('TIMELINE');
+  const [activeTab, setActiveTab] = useState<'TIMELINE' | 'CARE_GUIDE' | 'TUTORS' | 'TRANSFER'>('CARE_GUIDE');
+  const [currentCareGuide, setCurrentCareGuide] = useState<SpeciesCareGuide | undefined>(plant.careGuide);
+  const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
+  const [guideError, setGuideError] = useState<string | null>(null);
+
+  // Structured Care and Edit mode state
+  const [structuredCare, setStructuredCare] = useState<PlantStructuredCare>(() => getOrInitializeStructuredCare(plant));
+  const [isEditingCare, setIsEditingCare] = useState(false);
+  const [careForm, setCareForm] = useState<PlantStructuredCare>(() => getOrInitializeStructuredCare(plant));
+  const [hasManualCareEdits, setHasManualCareEdits] = useState(false);
+  const [pendingGuide, setPendingGuide] = useState<SpeciesCareGuide | null>(null);
+  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
+
+  useEffect(() => {
+    setCurrentCareGuide(plant.careGuide);
+    const initial = getOrInitializeStructuredCare(plant);
+    setStructuredCare(initial);
+    setCareForm(initial);
+    setHasManualCareEdits(false);
+  }, [plant]);
+
+  const applyGuideToCare = (guide: SpeciesCareGuide) => {
+    const derived = deriveStructuredCareFromGuide(guide);
+    setCareForm(derived);
+    setStructuredCare(derived);
+    setHasManualCareEdits(false);
+    setShowOverwriteModal(false);
+    setPendingGuide(null);
+
+    // If not actively editing, sync immediately with parent
+    if (!isEditingCare && onUpdatePlantCare) {
+      const wDays = getWateringDays(derived.wateringFrequency, derived.customWateringDays);
+      const fDays = getFertilizerDays(derived.fertilizerFrequency, derived.customFertilizerDays);
+      const updatedSchedule: CareSchedule = {
+        ...plant.careSchedule,
+        waterFrequencyDays: wDays,
+        fertilizeFrequencyDays: fDays,
+      };
+      onUpdatePlantCare(plant.id, derived, updatedSchedule, guide);
+    }
+  };
+
+  const handleKeepManualEdits = () => {
+    setShowOverwriteModal(false);
+    setPendingGuide(null);
+  };
+
+  const handleFetchCareGuide = async () => {
+    setIsGeneratingGuide(true);
+    setGuideError(null);
+    try {
+      const response = await fetch('/api/species-care-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scientificName: plant.species,
+          commonName: plant.name,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Não foi possível carregar as orientações botânicas.');
+      }
+
+      const guide = data.data as SpeciesCareGuide;
+      setCurrentCareGuide(guide);
+      if (onUpdatePlantCareGuide) {
+        onUpdatePlantCareGuide(plant.id, guide);
+      }
+
+      // If user has edited fields, do not overwrite silently! Ask first.
+      if (hasManualCareEdits) {
+        setPendingGuide(guide);
+        setShowOverwriteModal(true);
+      } else {
+        applyGuideToCare(guide);
+      }
+    } catch (err: any) {
+      setGuideError(err.message || 'Erro ao consultar orientações botânicas.');
+    } finally {
+      setIsGeneratingGuide(false);
+    }
+  };
+
+  const handleSaveCareEdits = () => {
+    const wDays = getWateringDays(careForm.wateringFrequency, careForm.customWateringDays);
+    const fDays = getFertilizerDays(careForm.fertilizerFrequency, careForm.customFertilizerDays);
+    const updatedSchedule: CareSchedule = {
+      ...plant.careSchedule,
+      waterFrequencyDays: wDays,
+      fertilizeFrequencyDays: fDays,
+    };
+
+    setStructuredCare(careForm);
+    setIsEditingCare(false);
+    setHasManualCareEdits(false);
+
+    if (onUpdatePlantCare) {
+      onUpdatePlantCare(plant.id, careForm, updatedSchedule, currentCareGuide);
+    }
+
+    setSaveSuccessNotice(true);
+    setTimeout(() => setSaveSuccessNotice(false), 3500);
+  };
+
+  const handleCancelCareEdits = () => {
+    setCareForm(structuredCare);
+    setIsEditingCare(false);
+    setHasManualCareEdits(false);
+    setShowOverwriteModal(false);
+    setPendingGuide(null);
+  };
 
   // New timeline event form state
   const [eventTitle, setEventTitle] = useState('');
@@ -101,8 +260,8 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
           <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="bg-[#D4AF37] text-[#2D3A2D] font-mono font-bold text-xs px-3 py-1 rounded-full shadow-xs">
-                  {plant.rgDigital}
+                <span className="bg-[#D4AF37] text-[#2D3A2D] font-bold text-xs px-3 py-1 rounded-full shadow-xs">
+                  {plant.environmentName || 'Meu Jardim'}
                 </span>
                 {plant.isOrphan && (
                   <span className="bg-[#A68069] text-[#F5F5F0] font-bold text-xs px-2.5 py-0.5 rounded-full border border-[#D4AF37]/40">
@@ -156,8 +315,23 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
         {/* Modal Navigation Tabs */}
         <div className="border-b border-[#5A5A40]/20 bg-[#F5F5F0] px-6 pt-3 flex items-center space-x-2 overflow-x-auto">
           <button
+            onClick={() => setActiveTab('CARE_GUIDE')}
+            className={`px-4 py-3 font-semibold text-xs rounded-t-2xl transition-all flex items-center gap-2 border-b-2 whitespace-nowrap ${
+              activeTab === 'CARE_GUIDE'
+                ? 'bg-white border-[#A68069] text-[#2D3A2D] shadow-xs font-bold'
+                : 'border-transparent text-[#5A5A40] hover:text-[#2D3A2D]'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 text-emerald-700" />
+            Guia de Cultivo da Espécie
+            {currentCareGuide && (
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('TIMELINE')}
-            className={`px-4 py-3 font-semibold text-xs rounded-t-2xl transition-all flex items-center gap-2 border-b-2 ${
+            className={`px-4 py-3 font-semibold text-xs rounded-t-2xl transition-all flex items-center gap-2 border-b-2 whitespace-nowrap ${
               activeTab === 'TIMELINE'
                 ? 'bg-white border-[#A68069] text-[#2D3A2D] shadow-xs font-bold'
                 : 'border-transparent text-[#5A5A40] hover:text-[#2D3A2D]'
@@ -165,18 +339,6 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
           >
             <History className="w-4 h-4 text-[#A68069]" />
             Linha do Tempo Inapagável ({plant.timeline.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('RG_QR')}
-            className={`px-4 py-3 font-semibold text-xs rounded-t-2xl transition-all flex items-center gap-2 border-b-2 ${
-              activeTab === 'RG_QR'
-                ? 'bg-white border-[#A68069] text-[#2D3A2D] shadow-xs font-bold'
-                : 'border-transparent text-[#5A5A40] hover:text-[#2D3A2D]'
-            }`}
-          >
-            <QrCode className="w-4 h-4 text-[#D4AF37]" />
-            RG Digital & QR Code
           </button>
 
           <button
@@ -206,7 +368,385 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
 
         {/* Tab Contents */}
         <div className="p-6 sm:p-8 space-y-6">
-          
+
+          {/* TAB: CARE GUIDE */}
+          {activeTab === 'CARE_GUIDE' && (
+            <div className="space-y-6 animate-fadeIn">
+              {guideError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-xs text-red-800">
+                  <AlertCircle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-bold">Não foi possível carregar as orientações</p>
+                    <p className="text-[11px] text-red-700 mt-0.5">{guideError}</p>
+                  </div>
+                  <button
+                    onClick={handleFetchCareGuide}
+                    className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-900 rounded-xl font-bold text-xs"
+                  >
+                    Tentar Novamente
+                  </button>
+                </div>
+              )}
+
+              {/* Success Notification on save */}
+              {saveSuccessNotice && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-900 shadow-2xs animate-fadeIn">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="font-semibold">
+                    Cuidados estruturados atualizados com sucesso e sincronizados na planta!
+                  </span>
+                </div>
+              )}
+
+              {/* Overwrite Confirmation Alert */}
+              {showOverwriteModal && pendingGuide && (
+                <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl shadow-sm space-y-3 animate-fadeIn">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-amber-950">
+                        Substituir alterações manuais de cuidados?
+                      </h5>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Você já havia personalizado os campos de cuidados desta planta. Foram obtidas novas recomendações botânicas para <strong>{pendingGuide.scientificName}</strong>. Deseja aplicar as novas recomendações aos campos estruturados ou manter suas alterações manuais?
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1 justify-end">
+                    <button
+                      type="button"
+                      onClick={handleKeepManualEdits}
+                      className="px-3.5 py-1.5 bg-white hover:bg-stone-100 text-[#2D3A2D] text-xs font-semibold rounded-xl border border-stone-300 transition-colors cursor-pointer"
+                    >
+                      Manter minhas alterações
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyGuideToCare(pendingGuide)}
+                      className="px-4 py-1.5 bg-[#2D3A2D] hover:bg-[#1f291f] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      Substituir pelos recomendados
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Botanical Header Card */}
+              <div className="bg-[#2D3A2D] text-[#F5F5F0] rounded-3xl p-5 sm:p-6 border border-[#5A5A40] shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-[#D4AF37] text-[#2D3A2D] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                      Espécie Botânica
+                    </span>
+                    {currentCareGuide?.family && (
+                      <span className="text-[11px] text-[#F5F5F0]/80 bg-[#1f291f] px-2.5 py-0.5 rounded-full border border-[#5A5A40]">
+                        Família: {currentCareGuide.family}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-emerald-300 flex items-center gap-1 font-semibold">
+                      <Check className="w-3.5 h-3.5" />
+                      {currentCareGuide?.isWellKnownSpecies ? 'Diretrizes Consolidadas' : 'Recomendações Botânicas'}
+                    </span>
+                  </div>
+
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold italic text-[#F5F5F0]">
+                    {currentCareGuide?.scientificName || plant.species}
+                  </h3>
+                  {(currentCareGuide?.commonName || plant.name) && (
+                    <p className="text-xs text-[#D4AF37] font-sans">
+                      Nome popular / apelido: <span className="font-semibold">{currentCareGuide?.commonName || plant.name}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  {!isEditingCare ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCareForm(structuredCare);
+                          setIsEditingCare(true);
+                          setHasManualCareEdits(false);
+                        }}
+                        className="px-3.5 py-2 bg-[#D4AF37] hover:bg-[#c29e2f] text-[#2D3A2D] font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        Editar Cuidados
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleFetchCareGuide}
+                        disabled={isGeneratingGuide}
+                        className="px-3.5 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-60 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingGuide ? 'animate-spin text-[#D4AF37]' : ''}`} />
+                        {isGeneratingGuide ? 'Consultando...' : 'Atualizar com IA'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSaveCareEdits}
+                        className="px-4 py-2 bg-[#D4AF37] hover:bg-[#c29e2f] text-[#2D3A2D] font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        Salvar Cuidados
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCancelCareEdits}
+                        className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold border border-white/20 transition-all cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* CONTENT: Either Edit Form OR Structured Cards View */}
+              {isEditingCare ? (
+                /* EDIT MODE */
+                <div className="space-y-5 bg-white p-5 sm:p-6 rounded-3xl border border-[#5A5A40]/25 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-[#5A5A40]/15 pb-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-[#2D3A2D]">
+                        Modo de Edição dos Cuidados
+                      </h4>
+                      <p className="text-xs text-[#5A5A40]">
+                        Personalize os parâmetros de cultivo para a {plant.name}
+                      </p>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                      Editando
+                    </span>
+                  </div>
+
+                  <PlantCareFormFields
+                    care={careForm}
+                    onChange={(updatedCare) => {
+                      setCareForm(updatedCare);
+                      setHasManualCareEdits(true);
+                    }}
+                  />
+
+                  <div className="pt-3 border-t border-[#5A5A40]/15 flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleCancelCareEdits}
+                      className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveCareEdits}
+                      className="px-5 py-2 bg-[#2D3A2D] hover:bg-[#1f291f] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      Salvar Cuidados
+                    </button>
+                  </div>
+
+                  {/* Collapsible reference accordion during editing */}
+                  {currentCareGuide && (
+                    <div className="pt-2">
+                      <SpeciesCareAccordion careGuide={currentCareGuide} defaultOpen={false} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* VIEW MODE: Structured Care Cards */
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 1. Rega */}
+                    <div className="bg-white p-5 rounded-3xl border border-sky-200/80 shadow-2xs space-y-2.5">
+                      <div className="flex items-center justify-between text-sky-800">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
+                            <Droplets className="w-4 h-4 text-sky-700" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                              Rega e Irrigação
+                            </h4>
+                            <span className="text-[11px] font-semibold text-sky-700">
+                              {structuredCare.wateringFrequency === 'personalizada'
+                                ? `Personalizada (${structuredCare.customWateringDays || 7} dias)`
+                                : WATERING_FREQUENCY_OPTIONS.find((opt) => opt.id === structuredCare.wateringFrequency)?.label || structuredCare.wateringFrequency}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-sky-50/70 rounded-2xl border border-sky-100 space-y-1 text-xs">
+                        <span className="text-[11px] font-bold text-sky-900 block">
+                          Como verificar a umidade do solo:
+                        </span>
+                        <p className="text-sky-950 leading-relaxed font-medium">
+                          {structuredCare.soilMoistureCheck || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. Iluminação */}
+                    <div className="bg-white p-5 rounded-3xl border border-amber-200/80 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-2 text-amber-800">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                          <Sun className="w-4 h-4 text-amber-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                            Iluminação e Sol
+                          </h4>
+                          <span className="text-[11px] font-semibold text-amber-700">
+                            {structuredCare.sunlightType === 'personalizada' && structuredCare.customSunlight
+                              ? `Personalizada: ${structuredCare.customSunlight}`
+                              : SUNLIGHT_OPTIONS.find((opt) => opt.id === structuredCare.sunlightType)?.label || structuredCare.sunlightType}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-amber-50/70 rounded-2xl border border-amber-100 text-xs">
+                        <p className="text-amber-950 font-medium">
+                          {currentCareGuide?.lighting?.idealLocation ? `Local sugerido: ${currentCareGuide.lighting.idealLocation}` : 'Luminosidade ajustada de acordo com as preferências da espécie.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3. Adubação */}
+                    <div className="bg-white p-5 rounded-3xl border border-emerald-200/80 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-2 text-emerald-800">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                          <Sprout className="w-4 h-4 text-emerald-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                            Adubação e Nutrientes
+                          </h4>
+                          <span className="text-[11px] font-semibold text-emerald-700">
+                            {structuredCare.fertilizerFrequency === 'personalizada'
+                              ? `Personalizada (${structuredCare.customFertilizerDays || 30} dias)`
+                              : FERTILIZING_FREQUENCY_OPTIONS.find((opt) => opt.id === structuredCare.fertilizerFrequency)?.label || structuredCare.fertilizerFrequency}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100 text-xs space-y-1">
+                        <span className="text-[11px] font-bold text-emerald-950 block">Tipo recomendado:</span>
+                        <p className="text-emerald-900 font-medium">
+                          {structuredCare.fertilizerType || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 4. Substrato */}
+                    <div className="bg-white p-5 rounded-3xl border border-stone-200 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-2 text-stone-800">
+                        <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
+                          <Layers className="w-4 h-4 text-stone-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                            Substrato e Drenagem
+                          </h4>
+                          <span className="text-[11px] font-semibold text-stone-600">Composição ideal</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/70 text-xs space-y-1">
+                        <span className="text-[11px] font-bold text-stone-900 block">Recomendação:</span>
+                        <p className="text-stone-800 font-medium leading-relaxed">
+                          {structuredCare.substrate || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 5. Temperatura e Umidade */}
+                    <div className="bg-white p-5 rounded-3xl border border-teal-200/80 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-2 text-teal-800">
+                        <div className="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+                          <Thermometer className="w-4 h-4 text-teal-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                            Temperatura e Umidade
+                          </h4>
+                          <span className="text-[11px] font-semibold text-teal-600">Condições ambientais</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-teal-50/70 rounded-2xl border border-teal-100 text-xs space-y-1">
+                        <p className="text-teal-950">
+                          <strong>Temperatura:</strong> {structuredCare.temperature || 'Não informado'}
+                        </p>
+                        <p className="text-teal-950">
+                          <strong>Umidade do ar:</strong> {structuredCare.humidity || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 6. Manutenção */}
+                    <div className="bg-white p-5 rounded-3xl border border-rose-200/80 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-2 text-rose-800">
+                        <div className="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                          <Scissors className="w-4 h-4 text-rose-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-[#2D3A2D]">
+                            Manutenção e Poda
+                          </h4>
+                          <span className="text-[11px] font-semibold text-rose-600">Manejo contínuo</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-rose-50/70 rounded-2xl border border-rose-100 text-xs space-y-1">
+                        <span className="text-[11px] font-bold text-rose-950 block">Orientações de poda e replantio:</span>
+                        <p className="text-rose-900 font-medium leading-relaxed">
+                          {structuredCare.maintenanceNotes || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Accordion: Diretrizes da espécie (collapsed by default) */}
+                  {currentCareGuide ? (
+                    <SpeciesCareAccordion careGuide={currentCareGuide} defaultOpen={false} />
+                  ) : (
+                    <div className="bg-[#FAF8F5] p-6 rounded-3xl border border-[#5A5A40]/20 text-center space-y-3">
+                      <BookOpen className="w-8 h-8 text-[#5A5A40] mx-auto opacity-60" />
+                      <div>
+                        <h5 className="font-serif font-bold text-[#2D3A2D] text-sm">
+                          Deseja consultar diretrizes botânicas completas com IA?
+                        </h5>
+                        <p className="text-xs text-[#5A5A40] max-w-md mx-auto mt-0.5">
+                          Gere uma análise botânica abrangente para consultar sempre que precisar nesta aba.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleFetchCareGuide}
+                        disabled={isGeneratingGuide}
+                        className="px-5 py-2.5 bg-[#2D3A2D] hover:bg-[#1f291f] text-white text-xs font-bold rounded-2xl shadow-xs transition-colors inline-flex items-center gap-2 border border-[#D4AF37]/50 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        {isGeneratingGuide ? 'Consultando Botânico de IA...' : 'Gerar Diretrizes da Espécie com IA'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 1: TIMELINE */}
           {activeTab === 'TIMELINE' && (
             <div className="space-y-6">
@@ -294,62 +834,6 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: RG DIGITAL & QR CODE */}
-          {activeTab === 'RG_QR' && (
-            <div className="space-y-6">
-              <div className="bg-[#2D3A2D] text-[#F5F5F0] rounded-3xl p-6 sm:p-8 border border-[#5A5A40] shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                
-                {/* Simulated Digital Badge */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#5A5A40] text-[#D4AF37] font-bold flex items-center justify-center text-xs">
-                      RG
-                    </div>
-                    <div>
-                      <h4 className="font-serif text-lg font-bold text-[#F5F5F0]">Documento Digital Oficial</h4>
-                      <p className="text-xs text-[#F5F5F0]/80">Certificado Inapagável de Identidade Botânica</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-xs font-mono bg-[#1f291f] p-4 rounded-2xl border border-[#5A5A40]">
-                    <div><span className="text-[#5A5A40]">CÓDIGO RG:</span> <strong className="text-[#D4AF37]">{plant.rgDigital}</strong></div>
-                    <div><span className="text-[#5A5A40]">NOME:</span> <span className="text-[#F5F5F0]">{plant.name}</span></div>
-                    <div><span className="text-[#5A5A40]">ESPÉCIE:</span> <span className="text-[#F5F5F0]/90 italic">{plant.species}</span></div>
-                    <div><span className="text-[#5A5A40]">CADASTRO:</span> <span className="text-[#F5F5F0]/80">{plant.birthDate}</span></div>
-                    <div><span className="text-[#5A5A40]">PRÓXIMA REGA:</span> <span className="text-[#D4AF37] font-bold">{calculateNextCareDate(plant.careSchedule.lastWatered, plant.careSchedule.waterFrequencyDays).statusText}</span></div>
-                    <div><span className="text-[#5A5A40]">PRÓXIMA ADUBAÇÃO:</span> <span className="text-[#F5F5F0]">{calculateNextCareDate(plant.careSchedule.lastFertilized, plant.careSchedule.fertilizeFrequencyDays).statusText}</span></div>
-                    <div><span className="text-[#5A5A40]">PRÓXIMA PODA:</span> <span className="text-[#F5F5F0]">{calculateNextCareDate(plant.careSchedule.lastPruned, plant.careSchedule.pruneFrequencyDays || 90).statusText}</span></div>
-                    <div><span className="text-[#5A5A40]">TUTOR INICIAL:</span> <span className="text-[#F5F5F0]/80">{plant.tutors[0]?.name}</span></div>
-                  </div>
-                </div>
-
-                {/* QR Code Visual */}
-                <div className="bg-white p-6 rounded-3xl text-[#2D3A2D] text-center space-y-3 shadow-md border border-[#5A5A40]/20">
-                  <span className="text-xs font-bold text-[#5A5A40] uppercase tracking-wider block">
-                    QR Code Perpétuo da Planta
-                  </span>
-
-                  {/* QR Code Graphic Representation */}
-                  <div className="w-36 h-36 mx-auto bg-[#2D3A2D] p-3 rounded-2xl flex items-center justify-center ring-4 ring-[#5A5A40]/30">
-                    <QrCode className="w-28 h-28 text-[#D4AF37]" />
-                  </div>
-
-                  <p className="text-[11px] text-[#5A5A40]">
-                    Ao escanear este QR code fixado no vaso, qualquer pessoa pode acessar a história completa da {plant.name}.
-                  </p>
-
-                  <button
-                    onClick={() => alert(`Imprimindo etiqueta com QR Code para ${plant.name} (${plant.rgDigital})...`)}
-                    className="w-full py-2.5 bg-[#2D3A2D] hover:bg-[#1f291f] text-[#F5F5F0] font-bold text-xs rounded-2xl transition-colors"
-                  >
-                    Imprimir Etiqueta para Vaso
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          )}
-
           {/* TAB 3: TUTORS & GUARDIANS */}
           {activeTab === 'TUTORS' && (
             <div className="space-y-6">
@@ -428,7 +912,7 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
               <div className="bg-[#F5F5F0] p-5 rounded-3xl border border-[#A68069]/40 text-[#2D3A2D] text-xs space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#A68069]">
                   <AlertCircle className="w-4 h-4 text-[#A68069]" />
-                  Transferência Definitiva de Tutoria (RG {plant.rgDigital})
+                  Transferência Definitiva de Tutoria
                 </div>
                 <p className="leading-relaxed">
                   Ao doar, vender ou disponibilizar para adoção, você transfere a propriedade ativa do perfil. <strong>O histórico acumulado e as fotos registradas não serão apagados</strong> — o novo tutor dará continuidade à história.
@@ -479,7 +963,7 @@ export const PlantProfileModal: React.FC<PlantProfileModalProps> = ({
                     Transferência Concluída com Sucesso!
                   </h4>
                   <p className="text-xs text-[#F5F5F0]/90 max-w-md mx-auto leading-relaxed">
-                    A custódia principal da {plant.name} foi atribuída a <strong className="text-[#D4AF37]">{transferTutorName}</strong>. Um evento oficial foi registrado na Linha do Tempo e o RG Digital permanece ativo.
+                    A custódia principal da {plant.name} foi atribuída a <strong className="text-[#D4AF37]">{transferTutorName}</strong>. Um evento oficial foi registrado na Linha do Tempo e o histórico permanece ativo.
                   </p>
                 </div>
               )}

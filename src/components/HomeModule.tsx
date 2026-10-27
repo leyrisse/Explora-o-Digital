@@ -8,7 +8,6 @@ interface HomeModuleProps {
   onLogCareTask: (plantId: string, taskType: CareTaskType) => void;
   onSelectPlant: (plant: Plant) => void;
   onNavigateToCare: () => void;
-  onNavigateToCommunity: () => void;
   userRole?: 'HOBBYIST' | 'PRO';
 }
 
@@ -17,7 +16,6 @@ export const HomeModule: React.FC<HomeModuleProps> = ({
   onLogCareTask,
   onSelectPlant,
   onNavigateToCare,
-  onNavigateToCommunity,
 }) => {
   // Calculate care status for all plants
   const plantCareList = plants.map((plant) => {
@@ -244,7 +242,7 @@ export const HomeModule: React.FC<HomeModuleProps> = ({
             </div>
             <div>
               <h3 className="font-serif text-xl font-bold text-[#2D3A2D]">Recordações do Jardim</h3>
-              <p className="text-xs text-[#5A5A40]">Marcos históricos registrados no RG Digital</p>
+              <p className="text-xs text-[#5A5A40]">Marcos históricos registrados no perfil da planta</p>
             </div>
           </div>
 
@@ -282,7 +280,7 @@ export const HomeModule: React.FC<HomeModuleProps> = ({
                 Filosofia da Identidade Permanente
               </div>
               <p className="text-[#F5F5F0]/90 leading-relaxed">
-                No Jardim, o histórico e o RG Digital pertencem à planta, e não ao dono. Mesmo se houver doação ou venda, todas as regas, adubações, florações e relatos permanecem preservados para sempre.
+                No Jardim, o histórico e os registros pertencem à planta, e não ao dono. Mesmo se houver doação ou venda, todas as regas, adubações, florações e relatos permanecem preservados para sempre.
               </p>
             </div>
           </div>
